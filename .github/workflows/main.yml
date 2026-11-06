@@ -22,18 +22,29 @@ jobs:
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.19.3' # نسخه‌ای که توی README گفته شده
+        flutter-version: '3.19.3'
         channel: 'stable'
 
     - name: Get Dependencies
       run: flutter pub get
 
-    # چون فایل firebase_options.dart نداریم، یک فایل خالی موقت میسازیم تا بیلد رد بشه
+    # ساخت فایل موقت فایربیس
     - name: Create Dummy Firebase Options
       run: |
         mkdir -p lib
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
+
+    # اصلاح فایل build.gradle اندروید برای حل مشکل compileSdk
+    - name: Fix Android build.gradle compileSdk issue
+      run: |
+        cd android
+        # حذف خطی که باعث خطا میشه (معمولا compileSdkVersion)
+        sed -i '/compileSdkVersion /d' build.gradle
+        # اضافه کردن compileSdkVersion به بلوک اصلی اندروید در app/build.gradle
+        sed -i '/compileSdkVersion 34/d' app/build.gradle
+        # اضافه کردن به اول بلوک android در app/build.gradle
+        sed -i '/android {/a \    compileSdkVersion 34' app/build.gradle
 
     - name: Build APK
       run: flutter build apk --debug
