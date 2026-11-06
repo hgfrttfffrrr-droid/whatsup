@@ -35,7 +35,21 @@ jobs:
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-    # بازنویسی کامل فایل build.gradle سطح بالا
+    # مرحله جدید و حیاتی: تزریق تنظیمات به همه پکیج‌های جانبی از طریق init.gradle
+    - name: Force Enable BuildConfig for All Subprojects
+      run: |
+        mkdir -p ~/.gradle/init.d
+        cat << 'EOF' > ~/.gradle/init.d/force-buildconfig.gradle
+        allprojects {
+            afterEvaluate { project ->
+                if (project.hasProperty('android')) {
+                    project.android.buildFeatures.buildConfig = true
+                }
+            }
+        }
+        EOF
+
+    # بازنویسی فایل build.gradle سطح بالا
     - name: Fix Android build.gradle entirely
       run: |
         cat << 'EOF' > android/build.gradle
@@ -66,84 +80,6 @@ jobs:
         }
         tasks.register("clean", Delete) {
             delete rootProject.buildDir
-        }
-        EOF
-
-    # بازنویسی کامل فایل app/build.gradle (سطح ماژول)
-    - name: Fix app/build.gradle entirely
-      run: |
-        cat << 'EOF' > android/app/build.gradle
-        def localProperties = new Properties()
-        def localPropertiesFile = rootProject.file('local.properties')
-        if (localPropertiesFile.exists()) {
-            localPropertiesFile.withReader('UTF-8') { reader ->
-                localProperties.load(reader)
-            }
-        }
-
-        def flutterRoot = localProperties.getProperty('flutter.sdk')
-        if (flutterRoot == null) {
-            throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
-        }
-
-        def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-        if (flutterVersionCode == null) {
-            flutterVersionCode = '1'
-        }
-
-        def flutterVersionName = localProperties.getProperty('flutter.versionName')
-        if (flutterVersionName == null) {
-            flutterVersionName = '1.0'
-        }
-
-        apply plugin: 'com.android.application'
-        apply plugin: 'kotlin-android'
-        apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
-        apply plugin: 'com.google.gms.google-services'
-
-        android {
-            namespace "com.example.whatsup" // مطمئن شو این با پکیج اصلی پروژه تو یکی باشه
-            compileSdk 34
-
-            compileOptions {
-                sourceCompatibility JavaVersion.VERSION_17
-                targetCompatibility JavaVersion.VERSION_17
-            }
-
-            kotlinOptions {
-                jvmTarget = '17'
-            }
-
-            sourceSets {
-                main.java.srcDirs += 'src/main/kotlin'
-            }
-
-            defaultConfig {
-                applicationId "com.example.whatsup"
-                minSdkVersion 21
-                targetSdkVersion 34
-                versionCode flutterVersionCode.toInteger()
-                versionName flutterVersionName
-            }
-
-            buildTypes {
-                release {
-                    signingConfig signingConfigs.debug
-                }
-            }
-
-            // این بخش حیاتی است:
-            buildFeatures {
-                buildConfig true
-            }
-        }
-
-        flutter {
-            source '../..'
-        }
-
-        dependencies {
-            implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
         }
         EOF
 
