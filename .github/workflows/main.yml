@@ -25,12 +25,17 @@ jobs:
         flutter-version: '3.19.3'
         channel: 'stable'
 
-    # مرحله جدید: حذف پکیج win32 که باعث خرابی بیلد اندروید میشه
+    # ساخت فایل .env خالی برای جلوگیری از ارور
+    - name: Create Dummy .env file
+      run: |
+        touch .env
+        echo "API_URL=http://localhost" > .env
+        echo "FIREBASE_API_KEY=dummy" >> .env
+
+    # حذف پکیج win32
     - name: Remove win32 dependency override
       run: |
-        # حذف خطوط مربوط به win32 از فایل pubspec.yaml
         sed -i '/win32:/d' pubspec.yaml
-        # اگر بلوک dependency_overrides خالی شد، اون رو هم پاک کن (اختیاری)
         sed -i '/dependency_overrides:/d' pubspec.yaml
 
     - name: Get Dependencies
