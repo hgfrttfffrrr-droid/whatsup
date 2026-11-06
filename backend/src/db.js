@@ -1,4 +1,3 @@
-
 import pg from "pg";
 
 const { Pool } = pg;
@@ -12,8 +11,28 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS users (
       id BIGSERIAL PRIMARY KEY,
       phone VARCHAR(16) UNIQUE NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      name VARCHAR(100) NOT NULL DEFAULT '',
+      profile_image TEXT NOT NULL DEFAULT '',
+      is_online BOOLEAN NOT NULL DEFAULT FALSE,
+      last_seen TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS name VARCHAR(100) NOT NULL DEFAULT '';
+
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS profile_image TEXT NOT NULL DEFAULT '';
+
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS is_online BOOLEAN NOT NULL DEFAULT FALSE;
+
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;
+
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
     CREATE TABLE IF NOT EXISTS otp_challenges (
       id BIGSERIAL PRIMARY KEY,
