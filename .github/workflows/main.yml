@@ -25,6 +25,14 @@ jobs:
         flutter-version: '3.19.3'
         channel: 'stable'
 
+    # مرحله جدید: حذف پکیج win32 که باعث خرابی بیلد اندروید میشه
+    - name: Remove win32 dependency override
+      run: |
+        # حذف خطوط مربوط به win32 از فایل pubspec.yaml
+        sed -i '/win32:/d' pubspec.yaml
+        # اگر بلوک dependency_overrides خالی شد، اون رو هم پاک کن (اختیاری)
+        sed -i '/dependency_overrides:/d' pubspec.yaml
+
     - name: Get Dependencies
       run: flutter pub get
 
@@ -35,7 +43,7 @@ jobs:
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-    # مرحله اصلاح شده: حل همزمان مشکل BuildConfig و Namespace
+    # تزریق تنظیمات به همه پکیج‌ها
     - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
@@ -43,13 +51,10 @@ jobs:
         allprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
-                    // حل مشکل BuildConfig
                     if (project.android.hasProperty('buildFeatures')) {
                         project.android.buildFeatures.buildConfig = true
                     }
-                    // حل مشکل Namespace برای کتابخانه‌هایی که ندارن
                     if (project.android.namespace == null) {
-                        // اگر پکیج اصلی نیست، یک namespace پیش‌فرض براش می‌سازیم
                         if (project.name != 'app') {
                             project.android.namespace = "com.example.${project.name.replace('-', '_')}"
                         }
