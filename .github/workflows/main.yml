@@ -53,38 +53,12 @@ jobs:
       run: |
         find ~/.pub-cache/hosted/pub.dev/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
 
-    # تزریق تنظیمات به همه پکیج‌ها (اصلاح شده)
-    - name: Inject Global Gradle Fixes
+    # تنظیم نسخه جاوا در فایل gradle.properties (روش استاندارد)
+    - name: Set Java version in gradle.properties
       run: |
-        mkdir -p ~/.gradle/init.d
-        cat << 'EOF' > ~/.gradle/init.d/global-fixes.gradle
-        allprojects {
-            afterEvaluate { project ->
-                if (project.hasProperty('android')) {
-                    // حل مشکل BuildConfig
-                    if (project.android.hasProperty('buildFeatures')) {
-                        project.android.buildFeatures.buildConfig = true
-                    }
-                    // حل مشکل Namespace
-                    if (project.android.namespace == null) {
-                        if (project.name != 'app') {
-                            project.android.namespace = "com.example.${project.name.replace('-', '_')}"
-                        }
-                    }
-                    // حل مشکل نسخه جاوا و کاتلین
-                    project.tasks.withType(JavaCompile).configureEach {
-                        sourceCompatibility = JavaVersion.VERSION_17
-                        targetCompatibility = JavaVersion.VERSION_17
-                    }
-                    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                        kotlinOptions {
-                            jvmTarget = "17"
-                        }
-                    }
-                }
-            }
-        }
-        EOF
+        echo "org.gradle.java.home=/opt/hostedtoolcache/Java_Zulu_jdk/17.0.9-9/x64" >> android/gradle.properties
+        echo "android.useAndroidX=true" >> android/gradle.properties
+        echo "android.enableJetifier=true" >> android/gradle.properties
 
     # بازنویسی فایل build.gradle سطح بالا
     - name: Fix Android build.gradle entirely
@@ -117,6 +91,73 @@ jobs:
         }
         tasks.register("clean", Delete) {
             delete rootProject.buildDir
+        }
+        EOF
+
+    # بازنویسی فایل build.gradle ماژول app برای اطمینان از تنظیمات درست
+    - name: Fix app/build.gradle entirely
+      run: |
+        cat << 'EOF' > android/app/build.gradle
+        def localProperties = new Properties()
+        def localPropertiesFile = rootProject.file('local.properties')
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.withReader('UTF-8') { reader ->
+                localProperties.load(reader)
+            }
+        }
+
+        def flutterRoot = localProperties.getProperty('flutter.sdk')
+        if (flutterRoot == null) {
+            throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+        }
+
+        apply plugin: 'com.android.application'
+        apply plugin: 'kotlin-android'
+        apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+        apply plugin: 'com.google.gms.google-services'
+
+        android {
+            namespace "com.example.whatsup"
+            compileSdk 34
+
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+
+            kotlinOptions {
+                jvmTarget = '17'
+            }
+
+            sourceSets {
+                main.java.srcDirs += 'src/main/kotlin'
+            }
+
+            defaultConfig {
+                applicationId "com.example.whatsup"
+                minSdkVersion 21
+                targetSdkVersion 34
+                versionCode 1
+                versionName "1.0"
+            }
+
+            buildTypes {
+                release {
+                    signingConfig signingConfigs.debug
+                }
+            }
+
+            buildFeatures {
+                buildConfig true
+            }
+        }
+
+        flutter {
+            source '../..'
+        }
+
+        dependencies {
+            implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
         }
         EOF
 
