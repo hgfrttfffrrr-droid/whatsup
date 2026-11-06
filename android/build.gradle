@@ -17,20 +17,22 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-// Configure Android library modules
+// Configure Android modules
 subprojects { subproject ->
 
     subproject.plugins.withId("com.android.library") {
-
         def androidExtension =
             subproject.extensions.findByName("android")
 
         if (androidExtension != null) {
-
             androidExtension.buildFeatures.buildConfig = true
 
-            if (androidExtension.namespace == null) {
+            androidExtension.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
 
+            if (androidExtension.namespace == null) {
                 def manifestFile = subproject.file(
                     "src/main/AndroidManifest.xml"
                 )
@@ -38,7 +40,6 @@ subprojects { subproject ->
                 def namespaceValue = null
 
                 if (manifestFile.exists()) {
-
                     def matcher = manifestFile.getText("UTF-8") =~ /package=["']([^"']+)["']/
 
                     if (matcher.find()) {
@@ -47,8 +48,7 @@ subprojects { subproject ->
                 }
 
                 if (namespaceValue == null) {
-                    namespaceValue =
-                        "com.flutter.plugins." +
+                    namespaceValue = "com.flutter.plugins." +
                         subproject.name.replaceAll("[^A-Za-z0-9]", "")
                 }
 
@@ -58,12 +58,16 @@ subprojects { subproject ->
     }
 
     subproject.plugins.withId("com.android.application") {
-
         def androidExtension =
             subproject.extensions.findByName("android")
 
         if (androidExtension != null) {
             androidExtension.buildFeatures.buildConfig = true
+
+            androidExtension.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
         }
     }
 }
