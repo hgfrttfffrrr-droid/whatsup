@@ -25,12 +25,14 @@ jobs:
         flutter-version: '3.19.3'
         channel: 'stable'
 
+    # ساخت فایل .env خالی
     - name: Create Dummy .env file
       run: |
         touch .env
         echo "API_URL=http://localhost" > .env
         echo "FIREBASE_API_KEY=dummy" >> .env
 
+    # حذف پکیج win32
     - name: Remove win32 dependency override
       run: |
         sed -i '/win32:/d' pubspec.yaml
@@ -39,17 +41,19 @@ jobs:
     - name: Get Dependencies
       run: flutter pub get
 
+    # ساخت فایل موقت فایربیس
     - name: Create Dummy Firebase Options
       run: |
         mkdir -p lib
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
+    # پاک کردن تگ package از تمام AndroidManifest.xml ها
     - name: Remove package attribute from ALL third-party manifests
       run: |
         find ~/.pub-cache/hosted/pub.dev/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
 
-    # مرحله تزریق تنظیمات (اصلاح شده و کامل)
+    # تزریق تنظیمات سراسری (فقط برای BuildConfig و Namespace)
     - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
@@ -67,28 +71,19 @@ jobs:
                             project.android.namespace = "com.example.${project.name.replace('-', '_')}"
                         }
                     }
-                    // حل مشکل نسخه جاوا (با استفاده از دامنه کامل برای جلوگیری از خطا)
-                    project.tasks.withType(JavaCompile).configureEach {
-                        sourceCompatibility = JavaVersion.VERSION_17
-                        targetCompatibility = JavaVersion.VERSION_17
-                    }
-                    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                        kotlinOptions {
-                            jvmTarget = "17"
-                        }
-                    }
                 }
             }
         }
         EOF
 
-    # تنظیمات استاندارد در gradle.properties (بدون مسیر جاوا)
+    # تنظیمات استاندارد در gradle.properties
     - name: Set Gradle Properties
       run: |
         echo "android.useAndroidX=true" >> android/gradle.properties
         echo "android.enableJetifier=true" >> android/gradle.properties
         echo "org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8" >> android/gradle.properties
 
+    # بازنویسی فایل build.gradle سطح بالا
     - name: Fix Android build.gradle entirely
       run: |
         cat << 'EOF' > android/build.gradle
@@ -119,6 +114,73 @@ jobs:
         }
         tasks.register("clean", Delete) {
             delete rootProject.buildDir
+        }
+        EOF
+
+    # بازنویسی فایل build.gradle ماژول app
+    - name: Fix app/build.gradle entirely
+      run: |
+        cat << 'EOF' > android/app/build.gradle
+        def localProperties = new Properties()
+        def localPropertiesFile = rootProject.file('local.properties')
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.withReader('UTF-8') { reader ->
+                localProperties.load(reader)
+            }
+        }
+
+        def flutterRoot = localProperties.getProperty('flutter.sdk')
+        if (flutterRoot == null) {
+            throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+        }
+
+        apply plugin: 'com.android.application'
+        apply plugin: 'kotlin-android'
+        apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+        apply plugin: 'com.google.gms.google-services'
+
+        android {
+            namespace "com.example.whatsup"
+            compileSdk 34
+
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+
+            kotlinOptions {
+                jvmTarget = '17'
+            }
+
+            sourceSets {
+                main.java.srcDirs += 'src/main/kotlin'
+            }
+
+            defaultConfig {
+                applicationId "com.example.whatsup"
+                minSdkVersion 21
+                targetSdkVersion 34
+                versionCode 1
+                versionName "1.0"
+            }
+
+            buildTypes {
+                release {
+                    signingConfig signingConfigs.debug
+                }
+            }
+
+            buildFeatures {
+                buildConfig true
+            }
+        }
+
+        flutter {
+            source '../..'
+        }
+
+        dependencies {
+            implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
         }
         EOF
 
