@@ -1,11 +1,11 @@
-
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import jwt from "jsonwebtoken";
 
-import { initDb } from "./db.js";
+import { initDb, pool } from "./db.js";
 import { requestOtp, verifyOtp } from "./auth.js";
 
 const app = express();
@@ -69,6 +69,51 @@ app.post("/auth/verify-otp", authLimiter, async (req, res) => {
     res.status(400).json({
       ok: false,
       error: error.message
+    });
+  }
+});
+
+// شناسایی کاربر با توکن JWT
+app.get("/auth/me", async (req, res) => {
+  try {
+    const authorization = req.headers.authorization;
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return res.status(401).json({
+        ok: false,
+        error: "توکن ورود ارسال نشده است."
+      });
+    }
+
+    const token = authorization.substring(7);
+
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    const result = await pool.query(
+      "SELECT id, phone FROM users WHERE id = $1",
+      [payload.sub]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(401).json({
+        ok: false,
+        error: "کاربر پیدا نشد."
+      });
+    }
+
+    return res.json({
+      ok: true,
+      user: {
+        id: result.rows[0].id,
+        phone: result.rows[0].phone,
+        name: "",
+        profileImage: ""
+      }
+    });
+  } catch (error) {
+    return res.status(401).json({
+      ok: false,
+      error: "توکن نامعتبر یا منقضی شده است."
     });
   }
 });
