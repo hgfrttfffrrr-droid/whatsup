@@ -53,12 +53,12 @@ jobs:
       run: |
         find ~/.pub-cache/hosted/pub.dev/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
 
-    # تنظیم نسخه جاوا در فایل gradle.properties (روش استاندارد)
-    - name: Set Java version in gradle.properties
+    # تنظیمات استاندارد در gradle.properties (بدون مسیر جاوا)
+    - name: Set Gradle Properties
       run: |
-        echo "org.gradle.java.home=/opt/hostedtoolcache/Java_Zulu_jdk/17.0.9-9/x64" >> android/gradle.properties
         echo "android.useAndroidX=true" >> android/gradle.properties
         echo "android.enableJetifier=true" >> android/gradle.properties
+        echo "org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8" >> android/gradle.properties
 
     # بازنویسی فایل build.gradle سطح بالا
     - name: Fix Android build.gradle entirely
@@ -94,7 +94,7 @@ jobs:
         }
         EOF
 
-    # بازنویسی فایل build.gradle ماژول app برای اطمینان از تنظیمات درست
+    # بازنویسی فایل build.gradle ماژول app
     - name: Fix app/build.gradle entirely
       run: |
         cat << 'EOF' > android/app/build.gradle
