@@ -48,11 +48,11 @@ jobs:
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-    # مرحله جدید: پاک کردن تگ package از AndroidManifest پکیج‌های جانبی
-    - name: Remove package attribute from third-party manifests
+    # مرحله ارتقا یافته: پاک کردن تگ package از تمام AndroidManifest.xml ها
+    - name: Remove package attribute from ALL third-party manifests
       run: |
-        # پیدا کردن فایل AndroidManifest.xml پکیج emoji_picker_flutter و حذف تگ package
-        find ~/.pub-cache/hosted/pub.dev/emoji_picker_flutter-1.6.1 -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
+        # پیدا کردن تمام فایل‌های AndroidManifest.xml در کش و حذف تگ package
+        find ~/.pub-cache/hosted/pub.dev/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
 
     # تزریق تنظیمات به همه پکیج‌ها
     - name: Inject Global Gradle Fixes
