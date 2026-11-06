@@ -55,7 +55,7 @@ jobs:
         PACKAGE_NAME=$(grep -o '"package_name": "[^"]*"' android/app/google-services.json | head -1 | cut -d'"' -f4)
         echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
 
-    # تزریق تنظیمات سراسری
+    # تزریق تنظیمات سراسری (حل مشکل R و BuildConfig)
     - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
@@ -63,9 +63,12 @@ jobs:
         allprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
+                    // فعال‌سازی ساخت فایل R و BuildConfig برای همه پکیج‌ها
                     if (project.android.hasProperty('buildFeatures')) {
                         project.android.buildFeatures.buildConfig = true
+                        project.android.buildFeatures.resValues = true
                     }
+                    // تخصیص namespace به پکیج‌هایی که ندارن
                     if (project.android.namespace == null) {
                         if (project.name != 'app') {
                             project.android.namespace = "com.example.${project.name.replace('-', '_')}"
@@ -76,13 +79,11 @@ jobs:
         }
         EOF
 
-    # تنظیمات استاندارد و حیاتی برای نادیده گرفتن ناسازگاری نسخه جاوا
     - name: Set Gradle Properties
       run: |
         echo "android.useAndroidX=true" >> android/gradle.properties
         echo "android.enableJetifier=true" >> android/gradle.properties
         echo "org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8" >> android/gradle.properties
-        # این خط جادویی، بررسی نسخه جاوا رو غیرفعال میکنه
         echo "kotlin.jvm.target.validation.mode=warning" >> android/gradle.properties
 
     - name: Fix Android build.gradle entirely
