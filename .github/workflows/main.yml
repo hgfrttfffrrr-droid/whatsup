@@ -48,13 +48,12 @@ jobs:
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-    # مرحله ارتقا یافته: پاک کردن تگ package از تمام AndroidManifest.xml ها
+    # پاک کردن تگ package از تمام AndroidManifest.xml ها
     - name: Remove package attribute from ALL third-party manifests
       run: |
-        # پیدا کردن تمام فایل‌های AndroidManifest.xml در کش و حذف تگ package
         find ~/.pub-cache/hosted/pub.dev/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
 
-    # تزریق تنظیمات به همه پکیج‌ها
+    # تزریق تنظیمات به همه پکیج‌ها (اضافه کردن jvmTarget)
     - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
@@ -69,6 +68,16 @@ jobs:
                         if (project.name != 'app') {
                             project.android.namespace = "com.example.${project.name.replace('-', '_')}"
                         }
+                    }
+                    // حل مشکل نسخه جاوا در پکیج‌های جانبی
+                    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                        kotlinOptions {
+                            jvmTarget = "17"
+                        }
+                    }
+                    project.tasks.withType(JavaCompile).configureEach {
+                        sourceCompatibility = JavaVersion.VERSION_17
+                        targetCompatibility = JavaVersion.VERSION_17
                     }
                 }
             }
