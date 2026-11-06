@@ -35,7 +35,7 @@ jobs:
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-    # بازنویسی کامل فایل build.gradle اندروید برای حل مشکل compileSdk
+    # بازنویسی کامل فایل build.gradle اندروید (سطح بالا)
     - name: Fix Android build.gradle entirely
       run: |
         cat << 'EOF' > android/build.gradle
@@ -68,6 +68,12 @@ jobs:
             delete rootProject.buildDir
         }
         EOF
+
+    # مرحله جدید: فعال‌سازی BuildConfig در فایل app/build.gradle
+    - name: Enable BuildConfig Feature
+      run: |
+        # اضافه کردن buildFeatures { buildConfig true } به بلوک android در app/build.gradle
+        sed -i '/android {/a \    buildFeatures {\n        buildConfig true\n    }' android/app/build.gradle
 
     - name: Build APK
       run: flutter build apk --debug
