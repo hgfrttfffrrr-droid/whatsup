@@ -35,16 +35,39 @@ jobs:
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-    # اصلاح فایل build.gradle اندروید برای حل مشکل compileSdk
-    - name: Fix Android build.gradle compileSdk issue
+    # بازنویسی کامل فایل build.gradle اندروید برای حل مشکل compileSdk
+    - name: Fix Android build.gradle entirely
       run: |
-        cd android
-        # حذف خطی که باعث خطا میشه (معمولا compileSdkVersion)
-        sed -i '/compileSdkVersion /d' build.gradle
-        # اضافه کردن compileSdkVersion به بلوک اصلی اندروید در app/build.gradle
-        sed -i '/compileSdkVersion 34/d' app/build.gradle
-        # اضافه کردن به اول بلوک android در app/build.gradle
-        sed -i '/android {/a \    compileSdkVersion 34' app/build.gradle
+        cat << 'EOF' > android/build.gradle
+        buildscript {
+            ext.kotlin_version = '1.9.22'
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.1.0'
+                classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+                classpath 'com.google.gms:google-services:4.4.1'
+            }
+        }
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        rootProject.buildDir = '../build'
+        subprojects {
+            project.buildDir = "${rootProject.buildDir}/${project.name}"
+        }
+        subprojects {
+            project.evaluationDependsOn(':app')
+        }
+        tasks.register("clean", Delete) {
+            delete rootProject.buildDir
+        }
+        EOF
 
     - name: Build APK
       run: flutter build apk --debug
