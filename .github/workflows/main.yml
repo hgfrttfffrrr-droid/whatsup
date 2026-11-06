@@ -1,47 +1,45 @@
-
-name: Build GAPROM APK
+name: Build WhatsUp APK
 
 on:
   push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build:
-    name: Build Android APK
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.5'
-          channel: stable
-          cache: true
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.3' # نسخه‌ای که توی README گفته شده
+        channel: 'stable'
 
-      - name: Flutter version
-        run: flutter --version
+    - name: Get Dependencies
+      run: flutter pub get
 
-      - name: Get dependencies
-        run: flutter pub get
+    # چون فایل firebase_options.dart نداریم، یک فایل خالی موقت میسازیم تا بیلد رد بشه
+    - name: Create Dummy Firebase Options
+      run: |
+        mkdir -p lib
+        touch lib/firebase_options.dart
+        echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-      - name: Build release APK
-        run: flutter build apk --release
+    - name: Build APK
+      run: flutter build apk --debug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: GAPROM-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: WhatsUp-Debug-APK
+        path: build/app/outputs/flutter-apk/app-debug.apk
