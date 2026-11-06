@@ -17,50 +17,53 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-// Enable BuildConfig for Android modules
-subprojects {
-    plugins.withId("com.android.library") {
-        android {
-            buildFeatures {
-                buildConfig = true
-            }
-        }
-    }
+// Configure Android library modules
+subprojects { subproject ->
 
-    plugins.withId("com.android.application") {
-        android {
-            buildFeatures {
-                buildConfig = true
-            }
-        }
-    }
-}
+    subproject.plugins.withId("com.android.library") {
 
-// Automatically set missing Android namespaces
-subprojects {
-    afterEvaluate { project ->
+        def androidExtension =
+            subproject.extensions.findByName("android")
 
-        if (project.plugins.hasPlugin("com.android.library") ||
-            project.plugins.hasPlugin("com.android.application")) {
+        if (androidExtension != null) {
 
-            def androidExtension = project.extensions.findByName("android")
+            androidExtension.buildFeatures.buildConfig = true
 
-            if (androidExtension != null &&
-                androidExtension.namespace == null) {
+            if (androidExtension.namespace == null) {
 
-                def manifestFile = project.file(
+                def manifestFile = subproject.file(
                     "src/main/AndroidManifest.xml"
                 )
+
+                def namespaceValue = null
 
                 if (manifestFile.exists()) {
 
                     def matcher = manifestFile.getText("UTF-8") =~ /package=["']([^"']+)["']/
 
                     if (matcher.find()) {
-                        androidExtension.namespace = matcher.group(1)
+                        namespaceValue = matcher.group(1)
                     }
                 }
+
+                if (namespaceValue == null) {
+                    namespaceValue =
+                        "com.flutter.plugins." +
+                        subproject.name.replaceAll("[^A-Za-z0-9]", "")
+                }
+
+                androidExtension.namespace = namespaceValue
             }
+        }
+    }
+
+    subproject.plugins.withId("com.android.application") {
+
+        def androidExtension =
+            subproject.extensions.findByName("android")
+
+        if (androidExtension != null) {
+            androidExtension.buildFeatures.buildConfig = true
         }
     }
 }
