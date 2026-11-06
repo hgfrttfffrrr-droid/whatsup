@@ -35,15 +35,25 @@ jobs:
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-    # مرحله جدید و حیاتی: تزریق تنظیمات به همه پکیج‌های جانبی از طریق init.gradle
-    - name: Force Enable BuildConfig for All Subprojects
+    # مرحله اصلاح شده: حل همزمان مشکل BuildConfig و Namespace
+    - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
-        cat << 'EOF' > ~/.gradle/init.d/force-buildconfig.gradle
+        cat << 'EOF' > ~/.gradle/init.d/global-fixes.gradle
         allprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
-                    project.android.buildFeatures.buildConfig = true
+                    // حل مشکل BuildConfig
+                    if (project.android.hasProperty('buildFeatures')) {
+                        project.android.buildFeatures.buildConfig = true
+                    }
+                    // حل مشکل Namespace برای کتابخانه‌هایی که ندارن
+                    if (project.android.namespace == null) {
+                        // اگر پکیج اصلی نیست، یک namespace پیش‌فرض براش می‌سازیم
+                        if (project.name != 'app') {
+                            project.android.namespace = "com.example.${project.name.replace('-', '_')}"
+                        }
+                    }
                 }
             }
         }
