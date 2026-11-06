@@ -17,7 +17,7 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-// Configure Android modules
+// Configure all Android modules
 subprojects { subproject ->
 
     subproject.plugins.withId("com.android.library") {
@@ -25,6 +25,8 @@ subprojects { subproject ->
             subproject.extensions.findByName("android")
 
         if (androidExtension != null) {
+            androidExtension.compileSdkVersion(34)
+
             androidExtension.buildFeatures.buildConfig = true
 
             androidExtension.compileOptions {
@@ -62,6 +64,8 @@ subprojects { subproject ->
             subproject.extensions.findByName("android")
 
         if (androidExtension != null) {
+            androidExtension.compileSdkVersion(34)
+
             androidExtension.buildFeatures.buildConfig = true
 
             androidExtension.compileOptions {
