@@ -56,7 +56,7 @@ jobs:
         echo "پکیج اصلی پروژه: $PACKAGE_NAME"
         echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
 
-    # تزریق تنظیمات سراسری (اصلاح شده با روش استاندارد برای حل مشکل جاوا)
+    # تزریق تنظیمات سراسری (فقط buildConfig و namespace)
     - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
@@ -70,16 +70,6 @@ jobs:
                     if (project.android.namespace == null) {
                         if (project.name != 'app') {
                             project.android.namespace = "com.example.${project.name.replace('-', '_')}"
-                        }
-                    }
-                    // حل مشکل نسخه جاوا با استفاده از راهنمای رسمی Gradle
-                    project.tasks.withType(JavaCompile).configureEach {
-                        sourceCompatibility = JavaVersion.VERSION_17
-                        targetCompatibility = JavaVersion.VERSION_17
-                    }
-                    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                        kotlinOptions {
-                            jvmTarget = "17"
                         }
                     }
                 }
@@ -151,13 +141,14 @@ jobs:
             namespace "${PACKAGE_NAME}"
             compileSdk 34
 
+            // استفاده از JVM Toolchain برای حل ناسازگاری نسخه‌ها به روش استاندارد
+            kotlin {
+                jvmToolchain(17)
+            }
+
             compileOptions {
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
-            }
-
-            kotlinOptions {
-                jvmTarget = '17'
             }
 
             sourceSets {
