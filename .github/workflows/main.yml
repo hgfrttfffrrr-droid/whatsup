@@ -25,14 +25,12 @@ jobs:
         flutter-version: '3.19.3'
         channel: 'stable'
 
-    # ساخت فایل .env خالی
     - name: Create Dummy .env file
       run: |
         touch .env
         echo "API_URL=http://localhost" > .env
         echo "FIREBASE_API_KEY=dummy" >> .env
 
-    # حذف پکیج win32
     - name: Remove win32 dependency override
       run: |
         sed -i '/win32:/d' pubspec.yaml
@@ -41,28 +39,24 @@ jobs:
     - name: Get Dependencies
       run: flutter pub get
 
-    # ساخت فایل موقت فایربیس
     - name: Create Dummy Firebase Options
       run: |
         mkdir -p lib
         touch lib/firebase_options.dart
         echo "// Dummy file to bypass build error" > lib/firebase_options.dart
 
-    # پاک کردن تگ package از تمام AndroidManifest.xml ها
     - name: Remove package attribute from ALL third-party manifests
       run: |
         find ~/.pub-cache/hosted/pub.dev/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
 
-    # مرحله جدید: خواندن نام پکیج از google-services.json
     - name: Extract Package Name from google-services.json
       id: get_package
       run: |
-        # استخراج نام پکیج از فایل JSON
         PACKAGE_NAME=$(grep -o '"package_name": "[^"]*"' android/app/google-services.json | head -1 | cut -d'"' -f4)
         echo "پکیج اصلی پروژه: $PACKAGE_NAME"
         echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
 
-    # تزریق تنظیمات سراسری
+    # تزریق تنظیمات سراسری (اصلاح شده با روش استاندارد برای حل مشکل جاوا)
     - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
@@ -78,19 +72,27 @@ jobs:
                             project.android.namespace = "com.example.${project.name.replace('-', '_')}"
                         }
                     }
+                    // حل مشکل نسخه جاوا با استفاده از راهنمای رسمی Gradle
+                    project.tasks.withType(JavaCompile).configureEach {
+                        sourceCompatibility = JavaVersion.VERSION_17
+                        targetCompatibility = JavaVersion.VERSION_17
+                    }
+                    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                        kotlinOptions {
+                            jvmTarget = "17"
+                        }
+                    }
                 }
             }
         }
         EOF
 
-    # تنظیمات استاندارد در gradle.properties
     - name: Set Gradle Properties
       run: |
         echo "android.useAndroidX=true" >> android/gradle.properties
         echo "android.enableJetifier=true" >> android/gradle.properties
         echo "org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8" >> android/gradle.properties
 
-    # بازنویسی فایل build.gradle سطح بالا
     - name: Fix Android build.gradle entirely
       run: |
         cat << 'EOF' > android/build.gradle
@@ -124,7 +126,6 @@ jobs:
         }
         EOF
 
-    # بازنویسی فایل build.gradle ماژول app با نام پکیج استخراج شده
     - name: Fix app/build.gradle entirely
       run: |
         cat << EOF > android/app/build.gradle
