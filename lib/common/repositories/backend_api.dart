@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +8,11 @@ import 'package:http/http.dart' as http;
 const String backendBaseUrl = 'https://YOUR_BACKEND_HOST';
 
 final backendApiProvider = Provider<BackendApi>((ref) {
-  return BackendApi();
+  final api = BackendApi();
+
+  ref.onDispose(api.dispose);
+
+  return api;
 });
 
 class BackendApi {
@@ -29,6 +34,25 @@ class BackendApi {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    return _handleResponse(response);
+  }
+
+  Future<Map<String, dynamic>> put(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final token = await getToken();
+
+    final response = await _client.put(
+      Uri.parse('$backendBaseUrl$path'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
       },
       body: jsonEncode(body),
     );
