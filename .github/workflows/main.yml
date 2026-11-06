@@ -53,7 +53,7 @@ jobs:
       run: |
         find ~/.pub-cache/hosted/pub.dev/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
 
-    # تزریق تنظیمات به همه پکیج‌ها (اضافه کردن jvmTarget)
+    # تزریق تنظیمات به همه پکیج‌ها (اصلاح شده)
     - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
@@ -61,23 +61,25 @@ jobs:
         allprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
+                    // حل مشکل BuildConfig
                     if (project.android.hasProperty('buildFeatures')) {
                         project.android.buildFeatures.buildConfig = true
                     }
+                    // حل مشکل Namespace
                     if (project.android.namespace == null) {
                         if (project.name != 'app') {
                             project.android.namespace = "com.example.${project.name.replace('-', '_')}"
                         }
                     }
-                    // حل مشکل نسخه جاوا در پکیج‌های جانبی
+                    // حل مشکل نسخه جاوا و کاتلین
+                    project.tasks.withType(JavaCompile).configureEach {
+                        sourceCompatibility = JavaVersion.VERSION_17
+                        targetCompatibility = JavaVersion.VERSION_17
+                    }
                     project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
                         kotlinOptions {
                             jvmTarget = "17"
                         }
-                    }
-                    project.tasks.withType(JavaCompile).configureEach {
-                        sourceCompatibility = JavaVersion.VERSION_17
-                        targetCompatibility = JavaVersion.VERSION_17
                     }
                 }
             }
