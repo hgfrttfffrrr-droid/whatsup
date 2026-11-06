@@ -36,6 +36,35 @@ subprojects {
     }
 }
 
+// Automatically set missing Android namespaces
+subprojects {
+    afterEvaluate { project ->
+
+        if (project.plugins.hasPlugin("com.android.library") ||
+            project.plugins.hasPlugin("com.android.application")) {
+
+            def androidExtension = project.extensions.findByName("android")
+
+            if (androidExtension != null &&
+                androidExtension.namespace == null) {
+
+                def manifestFile = project.file(
+                    "src/main/AndroidManifest.xml"
+                )
+
+                if (manifestFile.exists()) {
+
+                    def matcher = manifestFile.getText("UTF-8") =~ /package=["']([^"']+)["']/
+
+                    if (matcher.find()) {
+                        androidExtension.namespace = matcher.group(1)
+                    }
+                }
+            }
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
