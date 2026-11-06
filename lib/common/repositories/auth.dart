@@ -1,45 +1,36 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
-import 'package:whatsup/common/models/user.dart';
-import 'package:whatsup/common/providers.dart';
-import 'package:whatsup/common/util/logger.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:logger/logger.dart';
 
+import 'package:whatsup/common/models/user.dart';
+import 'package:whatsup/common/repositories/backend_api.dart';
+import 'package:whatsup/common/util/logger.dart';
+
 final authRepositoryProvider = Provider((ref) {
-  return AuthRepository(auth: ref.watch(authProvider));
+  return AuthRepository(
+    api: ref.watch(backendApiProvider),
+  );
 });
 
 class AuthRepository {
-  final Logger logger = AppLogger.getLogger((AuthRepository).toString());
-  final FirebaseAuth _auth;
+  final Logger logger =
+      AppLogger.getLogger((AuthRepository).toString());
+
+  final BackendApi _api;
+
+  UserModel? _currentUser;
 
   AuthRepository({
-    required FirebaseAuth auth,
-  }) : _auth = auth;
+    required BackendApi api,
+  }) : _api = api;
 
   Option<UserModel> get currentUser {
-    if (_auth.currentUser == null) {
+    if (_currentUser == null) {
       return const Option.none();
     }
-    final user = _auth.currentUser!;
-    if (user.phoneNumber == null) {
-      logger.d(
-        "Somehow the user with uid ${_auth.currentUser!.uid} is logged in without a phone number.",
-      );
-      return const Option.none();
-    }
-    return Option.of(user).map((user) {
-      return UserModel(
-        uid: user.uid,
-        phoneNumber: user.phoneNumber!,
-        // TODO: either return another type or fetch this from user provider
-        name: "",
-        profileImage: "",
-        isOnline: true,
-      );
-    });
+
+    return Option.of(_currentUser!);
   }
 
   Future<void> sendOTP({
@@ -49,25 +40,23 @@ class AuthRepository {
     required Function(String err) onError,
   }) async {
     try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        verificationCompleted: (credential) async {
-          await _auth.signInWithCredential(credential);
-          onSuccess();
+      final result = await _api.post(
+        '/auth/request-otp',
+        {
+          'phone': phoneNumber,
         },
-        verificationFailed: (err) {
-          onError(_getOtpErrorMsg(err.code));
-        },
-        codeSent: (id, resendToken) async {
-          onCodeSent(id);
-        },
-        codeAutoRetrievalTimeout: (id) {},
       );
-    } on FirebaseAuthException catch (e) {
-      onError(_getOtpErrorMsg(e.code));
+
+      logger.i('OTP request submitted successfully');
+
+      onCodeSent(
+        result['phone']?.toString() ?? phoneNumber,
+      );
+
+      onSuccess();
     } catch (e) {
-      logger.e(e.toString());
-      onError(_getOtpErrorMsg(e.toString()));
+      logger.e('OTP request failed: $e');
+      onError(_errorMessage(e));
     }
   }
 
@@ -79,44 +68,61 @@ class AuthRepository {
     required Function(String err) onError,
   }) async {
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: idSent,
-        smsCode: inputCode,
+      final result = await _api.post(
+        '/auth/verify-otp',
+        {
+          'phone': idSent,
+          'code': inputCode,
+        },
       );
-      await _auth.signInWithCredential(credential);
-      logger.i("OTP verified successfully. You are now logged in");
-      onSuccess();
-    } on FirebaseAuthException catch (e) {
-      onError(_getOtpErrorMsg(e.code));
-    } catch (e) {
-      logger.e(e.toString());
 
-      onError(_getOtpErrorMsg(e.toString()));
+      final token = result['token']?.toString();
+
+      if (token == null || token.isEmpty) {
+        throw Exception('توکن ورود از سرور دریافت نشد.');
+      }
+
+      final userData = result['user'];
+
+      if (userData is! Map<String, dynamic>) {
+        throw Exception('اطلاعات کاربر از سرور معتبر نیست.');
+      }
+
+      await _api.saveToken(token);
+
+      _currentUser = UserModel(
+        uid: userData['id'].toString(),
+        name: userData['name']?.toString() ?? '',
+        profileImage:
+            userData['profileImage']?.toString() ?? '',
+        phoneNumber: userData['phone']?.toString() ?? idSent,
+        isOnline: true,
+      );
+
+      logger.i('OTP verified successfully');
+
+      onSuccess();
+    } catch (e) {
+      logger.e('OTP verification failed: $e');
+      onError(_errorMessage(e));
     }
   }
 
-  String _getOtpErrorMsg(String code) {
-    String message = "Something went very wrong";
-    logger.e("Error code: $code");
-    switch (code) {
-      case "account-exists-with-different-credential":
-        message = "There is already an account with this phone number";
-        break;
-      case "operation-not-allowed":
-        message = "Phone auth is not enabled";
-        break;
-      case "invalid-verification-code":
-        message = "Failed to verify phone number. Please check the code you entered and try again";
-        break;
-      default:
-        message = "Failed to verify phone number. Please try again";
-        break;
+  String _errorMessage(Object error) {
+    final message = error.toString();
+
+    if (message.startsWith('Exception: ')) {
+      return message.substring('Exception: '.length);
     }
-    return message;
+
+    return 'ارتباط با سرور برقرار نشد. دوباره تلاش کنید.';
   }
 
   Future<void> signOut() async {
-    logger.d("Signing out user...");
-    throw UnimplementedError();
+    logger.d('Signing out user...');
+
+    await _api.deleteToken();
+
+    _currentUser = null;
   }
 }
