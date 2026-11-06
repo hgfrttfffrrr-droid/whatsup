@@ -53,7 +53,16 @@ jobs:
       run: |
         find ~/.pub-cache/hosted/pub.dev/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} \;
 
-    # تزریق تنظیمات سراسری (فقط برای BuildConfig و Namespace)
+    # مرحله جدید: خواندن نام پکیج از google-services.json
+    - name: Extract Package Name from google-services.json
+      id: get_package
+      run: |
+        # استخراج نام پکیج از فایل JSON
+        PACKAGE_NAME=$(grep -o '"package_name": "[^"]*"' android/app/google-services.json | head -1 | cut -d'"' -f4)
+        echo "پکیج اصلی پروژه: $PACKAGE_NAME"
+        echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+
+    # تزریق تنظیمات سراسری
     - name: Inject Global Gradle Fixes
       run: |
         mkdir -p ~/.gradle/init.d
@@ -61,11 +70,9 @@ jobs:
         allprojects {
             afterEvaluate { project ->
                 if (project.hasProperty('android')) {
-                    // حل مشکل BuildConfig
                     if (project.android.hasProperty('buildFeatures')) {
                         project.android.buildFeatures.buildConfig = true
                     }
-                    // حل مشکل Namespace
                     if (project.android.namespace == null) {
                         if (project.name != 'app') {
                             project.android.namespace = "com.example.${project.name.replace('-', '_')}"
@@ -117,10 +124,10 @@ jobs:
         }
         EOF
 
-    # بازنویسی فایل build.gradle ماژول app
+    # بازنویسی فایل build.gradle ماژول app با نام پکیج استخراج شده
     - name: Fix app/build.gradle entirely
       run: |
-        cat << 'EOF' > android/app/build.gradle
+        cat << EOF > android/app/build.gradle
         def localProperties = new Properties()
         def localPropertiesFile = rootProject.file('local.properties')
         if (localPropertiesFile.exists()) {
@@ -136,11 +143,11 @@ jobs:
 
         apply plugin: 'com.android.application'
         apply plugin: 'kotlin-android'
-        apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+        apply from: "\$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
         apply plugin: 'com.google.gms.google-services'
 
         android {
-            namespace "com.example.whatsup"
+            namespace "${PACKAGE_NAME}"
             compileSdk 34
 
             compileOptions {
@@ -157,7 +164,7 @@ jobs:
             }
 
             defaultConfig {
-                applicationId "com.example.whatsup"
+                applicationId "${PACKAGE_NAME}"
                 minSdkVersion 21
                 targetSdkVersion 34
                 versionCode 1
@@ -180,7 +187,7 @@ jobs:
         }
 
         dependencies {
-            implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+            implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:\$kotlin_version"
         }
         EOF
 
