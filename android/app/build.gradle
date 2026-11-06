@@ -1,3 +1,4 @@
+
 plugins {
     id "com.google.gms.google-services"
     id "com.android.application"
@@ -7,46 +8,37 @@ plugins {
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
+
 if (localPropertiesFile.exists()) {
     localPropertiesFile.withReader('UTF-8') { reader ->
         localProperties.load(reader)
     }
 }
 
-// def flutterRoot = localProperties.getProperty('flutter.sdk')
-// if (flutterRoot == null) {
-//     throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
-// }
+def flutterVersionCode =
+    localProperties.getProperty('flutter.versionCode') ?: '1'
 
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
-}
-
-def flutterVersionName = localProperties.getProperty('flutter.versionName')
-if (flutterVersionName == null) {
-    flutterVersionName = '1.0'
-}
-
-// apply plugin: 'com.android.application'
-// START: FlutterFire Configuration
-// apply plugin: 'com.google.gms.google-services'
-// END: FlutterFire Configuration
-// apply plugin: 'kotlin-android'
-// apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+def flutterVersionName =
+    localProperties.getProperty('flutter.versionName') ?: '1.0'
 
 android {
     namespace "com.whatsup.whatsup"
-    compileSdkVersion 33
+
+    compileSdkVersion 34
+
     ndkVersion flutter.ndkVersion
 
+    buildFeatures {
+        buildConfig true
+    }
+
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
 
     sourceSets {
@@ -54,10 +46,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "com.whatsup.whatsup"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdkVersion 24
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
@@ -66,10 +55,9 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig signingConfigs.debug
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android.txt'),
+                'proguard-rules.pro'
         }
     }
 }
@@ -79,7 +67,4 @@ flutter {
 }
 
 dependencies {
-    // implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
-
-
